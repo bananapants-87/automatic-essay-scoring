@@ -28,8 +28,18 @@ def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     out = df[["essay_id", "essay_set", "essay", "domain1_score"]].copy()
     out["essay"] = out["essay"].fillna("").astype(str)
     out["essay_set"] = pd.to_numeric(out["essay_set"], errors="raise").astype(int)
-    out["domain1_score"] = pd.to_numeric(out["domain1_score"], errors="raise")
-    out = out[out["essay"].str.strip().ne("")].reset_index(drop=True)
+    out["domain1_score"] = pd.to_numeric(out["domain1_score"], errors="coerce")
+
+    before = len(out)
+    out = out[
+        out["essay"].str.strip().ne("")
+        & out["domain1_score"].notna()
+    ].reset_index(drop=True)
+
+    removed = before - len(out)
+    if removed:
+        print(f"Removed {removed:,} rows with missing essay text or human score.")
+
     return out
 
 
