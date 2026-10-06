@@ -208,3 +208,41 @@ trait-aware scoring
       ↓
 explanations + error analysis
 ```
+
+
+## Web-scraped training workflow
+
+The project also supports training from **web-collected, scored essays**. The source must permit automated retrieval and use of the essay text for your intended research. The scraper checks `robots.txt` and requires an explicit `--confirm-permission` flag.
+
+Expected scraped CSV schema:
+
+```text
+essay,score,prompt,source_url,source_name
+```
+
+Example workflow:
+
+```powershell
+.venv\\Scripts\\python.exe src\\web_scraper.py --urls urls.txt --essay-selector ".essay" --score-selector ".score" --prompt-selector ".prompt" --source-name "Authorized Source" --output data\\scraped\\essays.csv --confirm-permission
+```
+
+Then compare four models:
+
+```powershell
+.venv\\Scripts\\python.exe src\\compare_models.py --data data\\scraped\\essays.csv
+```
+
+This trains and saves Ridge, LinearSVR, ElasticNet, and SGDRegressor models and writes `results/model_comparison.csv`.
+
+Launch the dashboard:
+
+```powershell
+.venv\\Scripts\\python.exe -m pip install -r requirements.txt
+.venv\\Scripts\\python.exe -m streamlit run app.py
+```
+
+The dashboard shows QWK, MAE, and RMSE for each model, visual comparisons, and predictions from multiple models for a pasted essay.
+
+**Important:** a supervised AES scraper needs a score label for each essay. Plain web essays without human/band scores cannot be used directly to train a regression model.
+
+**Do not scrape a site merely because its pages are public. Check its terms, licence, and robots.txt first.**
