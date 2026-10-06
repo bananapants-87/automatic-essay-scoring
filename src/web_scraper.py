@@ -5,68 +5,83 @@ import json
 import re
 import time
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
+SCORE_RE = re.compile(
+    r"(?:overall\\s*band|band\\s*score|score)\\s*[:\\-]?\\s*(\\d+(?:\\.5)?)",
+    re.I,
+)
 
-SCORE_RE = re.compile(r"(?:overall\s*band|band\s*score|score)\s*[:\-]?\s*(\d+(?:\.5)?)", re.I)
+COLUMNS = ["essay", "score", "prompt", "source_url", "source_name"]
 
 
-def robots_allowed(url: str, user_agent: str = "AESResearchBot/1.0") -> bool:
-    parsed = requests.utils.urlparse(url)
+def robots_allowed(url: str, user_agent: str) -> bool:
+    parsed = urlparse(url)
     robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
-    rp = RobotFileParser(robots_url)
     try:
+        rp = RobotFileParser(robots_url)
         rp.read()
         return rp.can_fetch(user_agent, url)
     except Exception:
         return False
 
 
-def text_from_selector(soup: BeautifulSoup, selector: str) -> str:
+def select_text(soup: BeautifulSoup, selector: str | None) -> str:
+    if not selector:
+        return ""
     node = soup.select_one(selector)
     return node.get_text(" ", strip=True) if node else ""
 
 
-def score_from_text(text: str) -> float | None:
+def extract_score(text: str) -> float | None:
     match = SCORE_RE.search(text)
     return float(match.group(1)) if match else None
 
 
-def scrape_urls(
+def scrape(
     urls: list[str],
     essay_selector: str,
     score_selector: str,
-    prompt_selector: str | None = None,
-    source_name: str = "",
-    delay: float = 1.5,
-    timeout: int = 20,
-    user_agent: str = "AESResearchBot/1.0",
+    prompt_selector: str | None,
+    source_name: str,
+    delay: float,
+    timeout: int,
+    user_agent: str,
 ) -> pd.DataFrame:
     session = requests.Session()
-    session.headers.update({"User-Agent": user_agent})
+    session.headers["User-Agent"] = user_agent
     rows: list[dict[str, object]] = []
 
-    for url in urls:
+    for index, url in enumerate(urls, start=1):
+        print(f"[{index}/{len(urls)}] {url}")
+
         if not robots_allowed(url, user_agent):
-            raise PermissionError(
-                f"robots.txt does not permit fetching {url} with user agent {user_agent!r}."
-            )
+            print("  SKIP: robots.txt does not permit this URL.")
+            continue
 
-        response = session.get(url, timeout=timeout)
-        response.raise_for_status()
+        try:
+            response = session.get(url, timeout=timeout)
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            print(f"  SKIP: request failed: {exc}")
+            continue
+
         soup = BeautifulSoup(response.text, "html.parser")
+        essay = select_text(soup, essay_selector)
+        score_text = select_text(soup, score_selector)
+        prompt = select_text(soup, prompt_selector)
+        score = extract_score(score_text)
 
-        essay = text_from_selector(soup, essay_selector)
-        score_text = text_from_selector(soup, score_selector)
-        prompt = text_from_selector(soup, prompt_selector) if prompt_selector else ""
-
-        score = score_from_text(score_text)
-        if essay and score is not None:
+        if not essay:
+            print("  SKIP: essay selector returned no text.")
+        elif score is None:
+            print("  SKIP: no score could be extracted.")
+        else:
             rows.append(
                 {
                     "essay": essay,
@@ -76,34 +91,43 @@ def scrape_urls(
                     "source_name": source_name,
                 }
             )
+            print(f"  OK: score={score:g}, words={len(essay.split()):,}")
 
-        time.sleep(delay)
+        if index < len(urls):
+            time.sleep(max(delay, 0.0))
 
-    return pd.DataFrame(rows, columns=["essay", "score", "prompt", "source_url", "source_name"])
+    return pd.DataFrame(rows, columns=COLUMNS).drop_duplicates(
+        subset=["essay"]
+    ).reset_index(drop=True)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Scrape scored essays from a source you are authorized to scrape."
+        description="Collect scored essays from a source you are authorized to retrieve."
     )
-    parser.add_argument("--urls", required=True, help="Text file containing one URL per line")
+    parser.add_argument("--urls", required=True, help="Text file with one URL per line.")
     parser.add_argument("--essay-selector", required=True)
     parser.add_argument("--score-selector", required=True)
     parser.add_argument("--prompt-selector")
-    parser.add_argument("--source-name", default="")
+    parser.add_argument("--source-name", required=True)
     parser.add_argument("--output", required=True)
-    parser.add_argument("--delay", type=float, default=1.5)
+    parser.add_argument("--delay", type=float, default=2.0)
+    parser.add_argument("--timeout", type=int, default=20)
+    parser.add_argument(
+        "--user-agent",
+        default="AESResearchBot/1.0",
+    )
     parser.add_argument(
         "--confirm-permission",
         action="store_true",
-        help="Confirm that you have permission to retrieve and use this source.",
+        help="Confirm that the source permits your intended automated retrieval and use.",
     )
     args = parser.parse_args()
 
     if not args.confirm_permission:
         raise SystemExit(
             "Refusing to scrape without --confirm-permission. "
-            "Only scrape sources that permit your intended use."
+            "Use only a source that permits your intended retrieval and use."
         )
 
     urls = [
@@ -111,19 +135,29 @@ def main() -> None:
         for line in Path(args.urls).read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.lstrip().startswith("#")
     ]
-    df = scrape_urls(
+    if not urls:
+        raise SystemExit("No URLs found in the URL file.")
+
+    df = scrape(
         urls=urls,
         essay_selector=args.essay_selector,
         score_selector=args.score_selector,
         prompt_selector=args.prompt_selector,
         source_name=args.source_name,
         delay=args.delay,
+        timeout=args.timeout,
+        user_agent=args.user_agent,
     )
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output, index=False)
-    print(f"Saved {len(df):,} scored essays to {output}")
+
+    print(f"\\nSaved {len(df):,} scored essays to {output}")
+    if not df.empty:
+        print(f"Score range: {df['score'].min():g}-{df['score'].max():g}")
+    else:
+        print("No rows were collected. Check selectors, permissions, and URLs.")
 
 
 if __name__ == "__main__":
