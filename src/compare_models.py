@@ -21,8 +21,14 @@ from sklearn.ensemble import RandomForestRegressor
 def qwk(y_true: np.ndarray, y_pred: np.ndarray, score_min: float, score_max: float) -> float:
     from sklearn.metrics import cohen_kappa_score
 
-    rounded = np.clip(np.rint(y_pred), score_min, score_max).astype(int)
-    return float(cohen_kappa_score(y_true.astype(int), rounded, weights="quadratic"))
+    rounded = np.clip(np.rint(y_pred * 2) / 2, score_min, score_max)
+    return float(
+        cohen_kappa_score(
+            np.rint(y_true * 2).astype(int),
+            np.rint(rounded * 2).astype(int),
+            weights="quadratic",
+        )
+    )
 
 
 def make_text(df: pd.DataFrame) -> pd.Series:
