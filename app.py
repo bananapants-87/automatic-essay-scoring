@@ -156,8 +156,17 @@ with tab_score:
         stats = essay_stats(scored_essay)
         st.markdown('<div class="section-title">Essay diagnostics <span class="section-caption">Input-level statistics</span></div>', unsafe_allow_html=True)
         cols=st.columns(7)
-        items=[("Words",f"{int(stats['Words']):,}"),("Characters",f"{int(stats['Characters']):,}"),("Sentences",f"{int(stats['Sentences']):,}"),("Paragraphs",f"{int(stats['Paragraphs']):,}"),("Words / sentence",f"{stats['Avg. words / sentence']:.1f}"),("Avg. word length",f"{stats['Avg. word length']:.1f}"),("Unique-word ratio",f"{stats['Unique-word ratio']:.2f}")]
-        for col,(label,value) in zip(cols,items): col.metric(label,value)
+        items=[
+            ("Word count", f"{int(stats['Words']):,}", "Total number of words in the essay."),
+            ("Character count", f"{int(stats['Characters']):,}", "Total characters, including spaces and punctuation."),
+            ("Sentence count", f"{int(stats['Sentences']):,}", "Number of detected sentences."),
+            ("Paragraph count", f"{int(stats['Paragraphs']):,}", "Number of paragraphs separated by blank lines."),
+            ("Avg. sentence length", f"{stats['Avg. words / sentence']:.1f}", "Average number of words per sentence."),
+            ("Avg. word length", f"{stats['Avg. word length']:.1f}", "Average number of characters per word."),
+            ("Lexical diversity", f"{stats['Unique-word ratio']:.2f}", "Unique words divided by total words; higher values indicate more varied vocabulary.")
+        ]
+        for col,(label,value,help_text) in zip(cols,items):
+            col.metric(label, value, help=help_text)
 
         st.markdown('<div class="section-title">Model estimates <span class="section-caption">This essay</span></div>', unsafe_allow_html=True)
         display_df=pred_df.copy()
