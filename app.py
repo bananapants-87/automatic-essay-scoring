@@ -23,39 +23,81 @@ WORD_RE = re.compile(r"\b\w+(?:['-]\w+)*\b")
 SENTENCE_RE = re.compile(r"[.!?]+")
 
 st.set_page_config(
-    page_title="AES Analytics | Automatic Essay Scoring",
+    page_title="Automatic Essay Scoring",
     page_icon="📝",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
+# -----------------------------------------------------------------------------
+# Visual system: restrained, editorial, research-tool aesthetic.
+# -----------------------------------------------------------------------------
 st.markdown(
     """
     <style>
-    .stApp { background:#f6f8fb; }
-    .block-container { max-width:1450px; padding-top:2rem; padding-bottom:3rem; }
-    [data-testid="stSidebar"] { background:#111827; border-right:1px solid #263244; }
-    [data-testid="stSidebar"] * { color:#e5e7eb; }
-    .hero { background:linear-gradient(135deg,#111827,#1f2937); border-radius:18px;
-            padding:30px 34px; margin-bottom:24px; box-shadow:0 10px 30px rgba(15,23,42,.10); }
-    .eyebrow { color:#93c5fd; font-size:.76rem; font-weight:750; letter-spacing:.14em; text-transform:uppercase; }
-    .hero h1 { color:#fff; font-size:2.35rem; margin:7px 0 0; line-height:1.1; }
-    .hero p { color:#cbd5e1; max-width:850px; margin:10px 0 0; }
-    .section-label { color:#64748b; font-size:.74rem; font-weight:750; letter-spacing:.12em;
-                     text-transform:uppercase; margin:18px 0 8px; }
-    .score-card { background:#fff; border:1px solid #e2e8f0; border-radius:18px; padding:24px;
-                  min-height:245px; box-shadow:0 6px 22px rgba(15,23,42,.06); }
-    .score-label { color:#64748b; font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
-    .score-value { color:#0f172a; font-size:3.6rem; line-height:1; font-weight:800; margin:12px 0 6px; }
-    .score-caption { color:#64748b; font-size:.9rem; }
-    .pipeline { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px 20px;
-                margin:18px 0 24px; color:#334155; text-align:center; font-weight:650; }
-    .pipeline span { color:#94a3b8; margin:0 9px; }
-    .status-pill { display:inline-block; background:#dcfce7; color:#166534; border-radius:999px;
-                   padding:5px 10px; font-size:.73rem; font-weight:700; }
-    .footer { color:#94a3b8; font-size:.78rem; text-align:center; margin-top:28px; }
-    div[data-testid="stMetric"] { background:#fff; border:1px solid #e2e8f0; border-radius:14px;
-                                    padding:14px 16px; box-shadow:0 4px 14px rgba(15,23,42,.04); }
+    :root {
+        --ink: #111827;
+        --muted: #64748b;
+        --line: #dfe5ec;
+        --panel: #ffffff;
+        --canvas: #f7f8fa;
+        --accent: #2563eb;
+        --accent-soft: #eff6ff;
+    }
+    .stApp { background: var(--canvas); color: var(--ink); }
+    .block-container { max-width: 1380px; padding: 2.2rem 3rem 4rem; }
+    [data-testid="stHeader"] { background: rgba(247,248,250,.92); }
+    [data-testid="stSidebar"] { background: #101827; border-right: 0; }
+    [data-testid="stSidebar"] * { color: #dbe4ef; }
+    [data-testid="stSidebar"] .stCaption { color: #94a3b8; }
+
+    .brand { padding: .35rem 0 1.6rem; }
+    .brand-mark { color: #ffffff; font-weight: 800; font-size: 1.05rem; letter-spacing: -.02em; }
+    .brand-sub { color: #7f8da3; font-size: .73rem; margin-top: .2rem; letter-spacing: .05em; text-transform: uppercase; }
+    .side-rule { height: 1px; background: #263244; margin: 1rem 0 1.25rem; }
+    .side-label { color: #64748b; font-size: .67rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 750; margin-bottom: .55rem; }
+    .side-status { color: #9fb2c9; font-size: .78rem; line-height: 1.55; }
+    .side-status strong { color: #e5edf7; }
+
+    .topline { display:flex; justify-content:space-between; align-items:flex-end; gap:2rem; margin-bottom:2.2rem; }
+    .kicker { color: var(--accent); font-size: .72rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    .title { color: var(--ink); font-size: 2.55rem; font-weight: 780; letter-spacing: -.045em; line-height: 1.02; margin-top: .45rem; }
+    .subtitle { color: var(--muted); font-size: .98rem; max-width: 720px; margin-top: .65rem; line-height: 1.55; }
+    .system-meta { color: #64748b; font-size: .75rem; text-align:right; line-height:1.6; }
+    .system-meta b { color:#334155; }
+
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.35rem 1.45rem; }
+    .panel-tight { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1.05rem 1.15rem; }
+    .panel-title { color:#111827; font-size:.92rem; font-weight:750; margin-bottom:.15rem; }
+    .panel-sub { color:#7b8797; font-size:.76rem; margin-bottom:1rem; }
+    .eyebrow { color:#718096; font-size:.67rem; font-weight:800; letter-spacing:.13em; text-transform:uppercase; }
+
+    .score-wrap { border: 1px solid #dbe4ef; background: #fbfdff; border-radius: 14px; padding: 1.35rem 1.4rem; }
+    .score-label { color:#64748b; font-size:.69rem; font-weight:800; letter-spacing:.11em; text-transform:uppercase; }
+    .score { color:#0f172a; font-size:4.5rem; line-height:.95; font-weight:800; letter-spacing:-.06em; margin:.6rem 0 .3rem; }
+    .score-model { color:#64748b; font-size:.78rem; }
+    .score-scale { color:#94a3b8; font-size:.72rem; margin-top:.2rem; }
+    .rule { height:1px; background:#e8edf3; margin:1.15rem 0; }
+
+    .metric-card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:1rem 1.05rem; min-height:91px; }
+    .metric-label { color:#718096; font-size:.68rem; font-weight:750; letter-spacing:.08em; text-transform:uppercase; }
+    .metric-value { color:#172033; font-size:1.35rem; font-weight:760; margin-top:.35rem; }
+    .metric-note { color:#94a3b8; font-size:.7rem; margin-top:.15rem; }
+
+    .section-head { display:flex; align-items:baseline; justify-content:space-between; margin:2.1rem 0 .8rem; }
+    .section-head h2 { color:#172033; font-size:1.05rem; margin:0; font-weight:760; }
+    .section-head span { color:#94a3b8; font-size:.72rem; }
+    .status { display:inline-flex; align-items:center; gap:.45rem; color:#166534; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:999px; padding:.28rem .62rem; font-size:.69rem; font-weight:750; }
+    .dot { width:6px; height:6px; border-radius:50%; background:#22c55e; display:inline-block; }
+
+    textarea { border-radius: 10px !important; }
+    div[data-testid="stMetric"] { background:#fff; border:1px solid var(--line); border-radius:12px; padding: .75rem .9rem; }
+    div[data-testid="stMetricLabel"] p { font-size:.68rem; color:#718096; }
+    div[data-testid="stMetricValue"] { font-size:1.25rem; }
+    .stButton > button { border-radius:9px; font-weight:700; }
+    .stTabs [data-baseweb="tab-list"] { gap:1.5rem; border-bottom:1px solid var(--line); }
+    .stTabs [data-baseweb="tab"] { padding-left:.05rem; padding-right:.05rem; }
+    .footer { color:#9aa5b5; font-size:.7rem; text-align:center; margin-top:3rem; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -93,184 +135,226 @@ def load_comparison() -> pd.DataFrame | None:
 comparison = load_comparison()
 available_models = comparison["model"].tolist() if comparison is not None and not comparison.empty else []
 
+# All four trained models are always part of the application. There is no
+# user-facing model selector: the dashboard runs every available model and
+# highlights the strongest one by stored QWK.
+
 with st.sidebar:
-    st.markdown("## AES Analytics")
-    st.caption("Automatic Essay Scoring")
-    st.divider()
+    st.markdown(
+        '<div class="brand"><div class="brand-mark">AES / Research Dashboard</div>'
+        '<div class="brand-sub">Automatic Essay Scoring</div></div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="side-rule"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="side-label">System</div>', unsafe_allow_html=True)
     if available_models:
         best_model = str(comparison.loc[comparison["qwk"].idxmax(), "model"])
-        selected = st.multiselect("Models to run", available_models, default=available_models)
-        st.caption(f"Best QWK model: **{best_model}**")
+        st.markdown(
+            f'<div class="side-status"><strong>4 regression models</strong><br>'
+            f'Ridge · LinearSVR · ElasticNet · SGDRegressor<br><br>'
+            f'Current strongest QWK<br><strong>{best_model}</strong></div>',
+            unsafe_allow_html=True,
+        )
     else:
-        selected = []
-    st.divider()
-    st.markdown("**Pipeline**")
-    st.caption("Dataset / HTML → preprocessing → TF-IDF → regression → score")
+        st.markdown('<div class="side-status">No trained model results found.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="side-rule"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="side-label">Data</div>', unsafe_allow_html=True)
     if SCRAPED_DATA.exists():
         try:
             n_scraped = len(pd.read_csv(SCRAPED_DATA))
+            st.markdown(f'<span class="status"><span class="dot"></span> Scraped dataset loaded</span>', unsafe_allow_html=True)
+            st.caption(f"{n_scraped:,} records · UOL Banco de Redações")
         except Exception:
-            n_scraped = None
-        st.markdown('<span class="status-pill">● Scraped data available</span>', unsafe_allow_html=True)
-        if n_scraped is not None:
-            st.caption(f"{n_scraped:,} scraped essays")
+            st.caption("Scraped dataset exists but could not be read.")
     else:
-        st.caption("Scraped dataset not found locally")
+        st.caption("Scraped dataset not found locally.")
 
+if not available_models:
+    st.error("No trained model results were found. Run `src/compare_models.py` after preparing the scored dataset.")
+    st.stop()
+
+best_model = str(comparison.loc[comparison["qwk"].idxmax(), "model"])
+
+# -----------------------------------------------------------------------------
+# Header
+# -----------------------------------------------------------------------------
 st.markdown(
-    """
-    <div class="hero">
-      <div class="eyebrow">NLP / Regression / Model Evaluation</div>
-      <h1>Automatic Essay Scoring</h1>
-      <p>Evaluate essays with TF-IDF-based regression models, inspect held-out performance, and generate score estimates from trained pipelines.</p>
+    f'''
+    <div class="topline">
+      <div>
+        <div class="kicker">NLP · Automated Assessment</div>
+        <div class="title">Automatic Essay Scoring</div>
+        <div class="subtitle">A TF-IDF regression system for estimating essay scores and evaluating model agreement with human assessments.</div>
+      </div>
+      <div class="system-meta"><b>Production models</b><br>4 regressors · word + character TF-IDF<br>Best stored QWK: <b>{best_model}</b></div>
     </div>
-    """,
+    ''',
     unsafe_allow_html=True,
 )
 
-if not available_models:
-    st.warning("No trained scraped-model results found. Run `src/compare_models.py` after preparing the scored dataset.")
-    st.stop()
-
-tab_score, tab_models, tab_data, tab_about = st.tabs(["Score an Essay", "Model Performance", "Data", "How It Works"])
+tab_score, tab_models, tab_data, tab_about = st.tabs(["Score an Essay", "Evaluation", "Dataset", "Methodology"])
 
 with tab_score:
-    st.markdown('<div class="section-label">Prediction workspace</div>', unsafe_allow_html=True)
-    left, right = st.columns([1.35, .85], gap="large")
+    left, right = st.columns([1.48, .82], gap="large")
 
     with left:
-        st.markdown("### Essay input")
+        st.markdown('<div class="panel">', unsafe_allow_html=True)
+        st.markdown('<div class="panel-title">Essay input</div>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-sub">Paste the complete essay. All four trained regressors will be evaluated automatically.</div>', unsafe_allow_html=True)
         essay = st.text_area(
-            "Essay", height=430, label_visibility="collapsed",
-            placeholder="Paste the full essay here...\n\nThe trained models will convert it to TF-IDF features and estimate a score.",
+            "Essay text",
+            height=445,
+            label_visibility="collapsed",
+            placeholder="Paste essay text here…",
         )
+        st.markdown('</div>', unsafe_allow_html=True)
 
     predictions: list[dict[str, object]] = []
     pred_df = pd.DataFrame()
 
-    with right:
-        st.markdown("### Prediction")
-        if essay.strip():
-            for name in selected:
-                artifact = load_model(name)
-                if artifact is None:
-                    continue
-                raw = float(np.asarray(artifact["pipeline"].predict([essay])).ravel()[0])
-                rounded = float(np.clip(np.rint(raw * 2) / 2, artifact["score_min"], artifact["score_max"]))
-                predictions.append({"Model": name, "Raw score": raw, "Predicted score": rounded})
+    if essay.strip():
+        for name in available_models:
+            artifact = load_model(name)
+            if artifact is None:
+                continue
+            raw = float(np.asarray(artifact["pipeline"].predict([essay])).ravel()[0])
+            rounded = float(np.clip(np.rint(raw * 2) / 2, artifact["score_min"], artifact["score_max"]))
+            predictions.append({"Model": name, "Raw score": raw, "Predicted score": rounded})
+        pred_df = pd.DataFrame(predictions)
 
-            if predictions:
-                pred_df = pd.DataFrame(predictions)
-                consensus = float(pred_df["Predicted score"].median())
-                best_model = str(comparison.loc[comparison["qwk"].idxmax(), "model"])
-                best_row = pred_df[pred_df["Model"] == best_model]
-                primary = float(best_row["Predicted score"].iloc[0]) if not best_row.empty else consensus
-                artifact = load_model(best_model)
-                lo = float(artifact["score_min"]) if artifact else 0.0
-                hi = float(artifact["score_max"]) if artifact else 10.0
-                progress = float(np.clip((primary - lo) / max(hi - lo, 1e-9), 0, 1))
-                st.markdown(
-                    f'<div class="score-card"><div class="score-label">Primary estimate · {best_model}</div>'
-                    f'<div class="score-value">{primary:g}</div>'
-                    f'<div class="score-caption">Consensus across selected models: <b>{consensus:g}</b></div></div>',
-                    unsafe_allow_html=True,
-                )
-                st.progress(progress, text=f"Score position · {lo:g} to {hi:g}")
-                st.markdown("**Model estimates**")
-                st.dataframe(pred_df.style.format({"Raw score": "{:.2f}", "Predicted score": "{:.1f}"}), hide_index=True, use_container_width=True)
-            else:
-                st.info("Select at least one trained model in the sidebar.")
+    with right:
+        if not pred_df.empty:
+            primary_row = pred_df[pred_df["Model"] == best_model]
+            primary = float(primary_row["Predicted score"].iloc[0]) if not primary_row.empty else float(pred_df["Predicted score"].median())
+            consensus = float(pred_df["Predicted score"].median())
+            artifact = load_model(best_model)
+            lo = float(artifact["score_min"]) if artifact else 0.0
+            hi = float(artifact["score_max"]) if artifact else 10.0
+            position = float(np.clip((primary - lo) / max(hi - lo, 1e-9), 0, 1))
+            st.markdown(
+                f'<div class="score-wrap"><div class="score-label">Primary estimate</div>'
+                f'<div class="score">{primary:g}</div>'
+                f'<div class="score-model">{best_model} · strongest stored QWK</div>'
+                f'<div class="score-scale">Score range: {lo:g}–{hi:g}</div></div>',
+                unsafe_allow_html=True,
+            )
+            st.progress(position, text=f"Position on score scale · {lo:g} to {hi:g}")
+            st.markdown('<div class="rule"></div>', unsafe_allow_html=True)
+            st.markdown('<div class="eyebrow">Cross-model estimate</div>', unsafe_allow_html=True)
+            st.markdown(f"**Median prediction: {consensus:g}**")
+            st.caption("All four regressors are run automatically; the primary estimate comes from the model with the strongest stored QWK.")
         else:
             st.markdown(
-                '<div class="score-card"><div class="score-label">Waiting for essay</div>'
-                '<div class="score-value">—</div><div class="score-caption">Paste an essay on the left to generate predictions.</div></div>',
+                '<div class="score-wrap"><div class="score-label">Primary estimate</div>'
+                '<div class="score">—</div><div class="score-model">Waiting for essay input</div>'
+                '<div class="score-scale">Paste an essay to generate predictions.</div></div>',
                 unsafe_allow_html=True,
             )
 
-    if essay.strip():
+    if essay.strip() and not pred_df.empty:
         stats = essay_stats(essay)
-        st.markdown('<div class="section-label">Essay diagnostics</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-head"><h2>Essay diagnostics</h2><span>Input-level statistics</span></div>', unsafe_allow_html=True)
         cols = st.columns(7)
         items = [
             ("Words", f"{int(stats['Words']):,}"),
             ("Characters", f"{int(stats['Characters']):,}"),
             ("Sentences", f"{int(stats['Sentences']):,}"),
             ("Paragraphs", f"{int(stats['Paragraphs']):,}"),
-            ("Avg. words / sentence", f"{stats['Avg. words / sentence']:.1f}"),
-            ("Avg. word length", f"{stats['Avg. word length']:.1f}"),
+            ("Words / sentence", f"{stats['Avg. words / sentence']:.1f}"),
+            ("Word length", f"{stats['Avg. word length']:.1f}"),
             ("Unique-word ratio", f"{stats['Unique-word ratio']:.2f}"),
         ]
         for col, (label, value) in zip(cols, items):
             col.metric(label, value)
-        if predictions:
-            st.markdown('<div class="section-label">Prediction comparison</div>', unsafe_allow_html=True)
-            st.bar_chart(pred_df.set_index("Model")[["Predicted score"]], use_container_width=True)
-        st.info("This is a learned estimate. QWK, MAE and RMSE are model-level test metrics and cannot be calculated for one essay without a human reference score.")
-    else:
-        st.markdown('<div class="pipeline">Essay <span>→</span> preprocessing <span>→</span> TF-IDF <span>→</span> regression <span>→</span> predicted score</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="section-head"><h2>Model estimates</h2><span>All trained regressors</span></div>', unsafe_allow_html=True)
+        display_df = pred_df.copy()
+        display_df["Predicted score"] = display_df["Predicted score"].map(lambda x: f"{x:g}")
+        display_df["Raw score"] = display_df["Raw score"].map(lambda x: f"{x:.3f}")
+        st.dataframe(display_df, hide_index=True, use_container_width=True)
+
+        chart_df = pred_df.set_index("Model")[["Predicted score"]]
+        st.bar_chart(chart_df, use_container_width=True)
+        st.info("Individual predictions are estimates. QWK, MAE and RMSE are evaluation metrics requiring reference scores and therefore apply to the test set, not a single essay.")
+    elif essay.strip():
+        st.warning("Essay received, but one or more trained model artifacts could not be loaded.")
 
 with tab_models:
-    st.markdown('<div class="section-label">Evaluation</div>', unsafe_allow_html=True)
-    st.markdown("### Model performance")
-    st.caption("Metrics come from the held-out test split produced by `src/compare_models.py`.")
+    st.markdown('<div class="section-head"><h2>Model evaluation</h2><span>Held-out test set</span></div>', unsafe_allow_html=True)
+    best_qwk = comparison.loc[comparison["qwk"].idxmax()]
+    best_mae = comparison.loc[comparison["mae"].idxmin()]
+    best_rmse = comparison.loc[comparison["rmse"].idxmin()]
     c1, c2, c3 = st.columns(3)
-    c1.metric("Best QWK", comparison.loc[comparison["qwk"].idxmax(), "model"])
-    c2.metric("Lowest MAE", comparison.loc[comparison["mae"].idxmin(), "model"])
-    c3.metric("Lowest RMSE", comparison.loc[comparison["rmse"].idxmin(), "model"])
+    c1.metric("Best QWK", f"{best_qwk['qwk']:.3f}", str(best_qwk["model"]))
+    c2.metric("Lowest MAE", f"{best_mae['mae']:.3f}", str(best_mae["model"]))
+    c3.metric("Lowest RMSE", f"{best_rmse['rmse']:.3f}", str(best_rmse["model"]))
+
+    st.markdown('<div class="section-head"><h2>Comparison</h2><span>Ridge · LinearSVR · ElasticNet · SGDRegressor</span></div>', unsafe_allow_html=True)
     table = comparison[["model", "qwk", "mae", "rmse", "n_test"]].rename(columns={"model":"Model", "qwk":"QWK", "mae":"MAE", "rmse":"RMSE", "n_test":"Test essays"})
     st.dataframe(table.round({"QWK":3, "MAE":3, "RMSE":3}), hide_index=True, use_container_width=True)
+
     a, b = st.columns(2, gap="large")
     with a:
-        st.markdown("#### Quadratic weighted kappa")
+        st.markdown("#### QWK")
         st.bar_chart(comparison.set_index("model")[["qwk"]], use_container_width=True)
     with b:
-        st.markdown("#### Prediction error")
+        st.markdown("#### Error")
         st.bar_chart(comparison.set_index("model")[["mae", "rmse"]], use_container_width=True)
 
 with tab_data:
-    st.markdown('<div class="section-label">Training data</div>', unsafe_allow_html=True)
-    st.markdown("### Dataset status")
-    a, b = st.columns(2)
+    st.markdown('<div class="section-head"><h2>Dataset registry</h2><span>Local project data</span></div>', unsafe_allow_html=True)
+    a, b = st.columns(2, gap="large")
     if SCRAPED_DATA.exists():
         try:
             scraped = pd.read_csv(SCRAPED_DATA)
-            a.metric("Scraped essays", f"{len(scraped):,}")
-            a.caption("data/scraped/uol_essays.csv")
-            st.markdown("#### Scraped dataset preview")
+            with a:
+                st.markdown('<div class="panel-tight">', unsafe_allow_html=True)
+                st.markdown('<div class="eyebrow">Web scraped</div>', unsafe_allow_html=True)
+                st.markdown(f"### {len(scraped):,} essays")
+                st.caption("UOL Banco de Redações · data/scraped/uol_essays.csv")
+                st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-head"><h2>Scraped data preview</h2><span>Source records</span></div>', unsafe_allow_html=True)
             cols = [c for c in ["essay", "score", "prompt", "source_url", "source_name"] if c in scraped.columns]
             st.dataframe(scraped[cols], hide_index=True, use_container_width=True)
         except Exception as exc:
             a.error(f"Could not read scraped dataset: {exc}")
     else:
-        a.metric("Scraped essays", "—")
+        with a:
+            st.warning("Scraped dataset not found.")
+
     if ASAP_DATA.exists():
         try:
             asap = pd.read_csv(ASAP_DATA)
-            b.metric("ASAP-AES essays", f"{len(asap):,}")
-            b.caption("data/processed/asap.csv")
+            with b:
+                st.markdown('<div class="panel-tight">', unsafe_allow_html=True)
+                st.markdown('<div class="eyebrow">Reference dataset</div>', unsafe_allow_html=True)
+                st.markdown(f"### {len(asap):,} essays")
+                st.caption("ASAP-AES · data/processed/asap.csv")
+                st.markdown('</div>', unsafe_allow_html=True)
         except Exception as exc:
             b.error(f"Could not read ASAP dataset: {exc}")
     else:
-        b.metric("ASAP-AES essays", "—")
+        with b:
+            st.warning("ASAP-AES dataset not found.")
 
 with tab_about:
-    st.markdown('<div class="section-label">System overview</div>', unsafe_allow_html=True)
-    st.markdown("### How the scoring system works")
-    st.markdown(
-        '<div class="pipeline">Essay text <span>→</span> prompt + essay representation <span>→</span> '
-        'word & character TF-IDF <span>→</span> regression model <span>→</span> score estimate</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="section-head"><h2>Methodology</h2><span>Model architecture</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<div class="eyebrow">Scoring pipeline</div>', unsafe_allow_html=True)
+    st.markdown("### Essay → TF-IDF → Regression → Score")
+    st.write("The system transforms essay text into word-level and character-level TF-IDF features and feeds that representation into four regularized linear regression models.")
+    st.markdown('</div>', unsafe_allow_html=True)
+
     a, b = st.columns(2, gap="large")
     with a:
         st.markdown("#### Feature representation")
-        st.write("The training pipeline combines word-level and character-level TF-IDF features. Word n-grams capture lexical patterns; character n-grams capture subword and stylistic patterns.")
+        st.write("Word n-grams capture lexical patterns and phrase structure. Character n-grams capture subword patterns, spelling variation and stylistic signals.")
         st.markdown("#### Models")
-        st.write("The current comparison includes Ridge, LinearSVR, ElasticNet, and SGDRegressor. The dashboard highlights the model with the strongest stored QWK.")
+        st.write("Ridge, LinearSVR, ElasticNet and SGDRegressor are evaluated using the same underlying feature representation so their performance can be compared directly.")
     with b:
         st.markdown("#### Evaluation")
-        st.write("QWK measures agreement with human scores, while MAE and RMSE quantify prediction error. These are test-set metrics, not confidence scores for an individual essay.")
-        st.markdown("#### Important limitation")
-        st.write("Predictions depend on the training data and scoring rubric. Incompatible score scales should not be mixed without appropriate normalization.")
+        st.write("Quadratic weighted kappa measures agreement with human scores. MAE and RMSE quantify absolute and squared prediction error respectively.")
+        st.markdown("#### Data integrity")
+        st.write("The training data must use a consistent scoring rubric. Historical web-scraped sources can contain different score scales and should be normalized before being combined.")
 
-st.markdown('<div class="footer">Automatic Essay Scoring · NLP regression dashboard</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Automatic Essay Scoring · NLP research dashboard</div>', unsafe_allow_html=True)
