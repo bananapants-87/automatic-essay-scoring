@@ -195,19 +195,18 @@ st.markdown(
 tab_score, tab_models, tab_data, tab_about = st.tabs(["Score an Essay", "Evaluation", "Dataset", "Methodology"])
 
 with tab_score:
-    left, right = st.columns([1.48, .82], gap="large")
+    st.markdown(
+        '<div class="panel"><div class="panel-title">Scoring workspace</div>'
+        '<div class="panel-sub">Paste an essay first. The complete model stack runs automatically.</div></div>',
+        unsafe_allow_html=True,
+    )
 
-    with left:
-        st.markdown('<div class="panel">', unsafe_allow_html=True)
-        st.markdown('<div class="panel-title">Essay input</div>', unsafe_allow_html=True)
-        st.markdown('<div class="panel-sub">Paste the complete essay. All four trained regressors will be evaluated automatically.</div>', unsafe_allow_html=True)
-        essay = st.text_area(
-            "Essay text",
-            height=445,
-            label_visibility="collapsed",
-            placeholder="Paste essay text here…",
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
+    essay = st.text_area(
+        "Essay text",
+        height=360,
+        label_visibility="collapsed",
+        placeholder="Paste the complete essay here…",
+    )
 
     predictions: list[dict[str, object]] = []
     pred_df = pd.DataFrame()
@@ -222,15 +221,17 @@ with tab_score:
             predictions.append({"Model": name, "Raw score": raw, "Predicted score": rounded})
         pred_df = pd.DataFrame(predictions)
 
-    with right:
-        if not pred_df.empty:
-            primary_row = pred_df[pred_df["Model"] == best_model]
-            primary = float(primary_row["Predicted score"].iloc[0]) if not primary_row.empty else float(pred_df["Predicted score"].median())
-            consensus = float(pred_df["Predicted score"].median())
-            artifact = load_model(best_model)
-            lo = float(artifact["score_min"]) if artifact else 0.0
-            hi = float(artifact["score_max"]) if artifact else 10.0
-            position = float(np.clip((primary - lo) / max(hi - lo, 1e-9), 0, 1))
+    if not pred_df.empty:
+        primary_row = pred_df[pred_df["Model"] == best_model]
+        primary = float(primary_row["Predicted score"].iloc[0]) if not primary_row.empty else float(pred_df["Predicted score"].median())
+        consensus = float(pred_df["Predicted score"].median())
+        artifact = load_model(best_model)
+        lo = float(artifact["score_min"]) if artifact else 0.0
+        hi = float(artifact["score_max"]) if artifact else 10.0
+        position = float(np.clip((primary - lo) / max(hi - lo, 1e-9), 0, 1))
+
+        score_col, consensus_col = st.columns([1.15, 1.85], gap="large")
+        with score_col:
             st.markdown(
                 f'<div class="score-wrap"><div class="score-label">Primary estimate</div>'
                 f'<div class="score">{primary:g}</div>'
@@ -239,19 +240,18 @@ with tab_score:
                 unsafe_allow_html=True,
             )
             st.progress(position, text=f"Position on score scale · {lo:g} to {hi:g}")
-            st.markdown('<div class="rule"></div>', unsafe_allow_html=True)
-            st.markdown('<div class="eyebrow">Cross-model estimate</div>', unsafe_allow_html=True)
-            st.markdown(f"**Median prediction: {consensus:g}**")
-            st.caption("All four regressors are run automatically; the primary estimate comes from the model with the strongest stored QWK.")
-        else:
-            st.markdown(
-                '<div class="score-wrap"><div class="score-label">Primary estimate</div>'
-                '<div class="score">—</div><div class="score-model">Waiting for essay input</div>'
-                '<div class="score-scale">Paste an essay to generate predictions.</div></div>',
-                unsafe_allow_html=True,
+        with consensus_col:
+            st.markdown('<div class="panel"><div class="panel-title">Model consensus</div><div class="panel-sub">All four regressors</div>', unsafe_allow_html=True)
+            st.metric("Median prediction", f"{consensus:g}")
+            st.dataframe(
+                pred_df[["Model", "Predicted score"]].assign(
+                    **{"Predicted score": pred_df["Predicted score"].map(lambda x: f"{x:g}")}
+                ),
+                hide_index=True,
+                use_container_width=True,
             )
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    if essay.strip() and not pred_df.empty:
         stats = essay_stats(essay)
         st.markdown('<div class="section-head"><h2>Essay diagnostics</h2><span>Input-level statistics</span></div>', unsafe_allow_html=True)
         cols = st.columns(7)
@@ -267,15 +267,13 @@ with tab_score:
         for col, (label, value) in zip(cols, items):
             col.metric(label, value)
 
-        st.markdown('<div class="section-head"><h2>Model estimates</h2><span>All trained regressors</span></div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-head"><h2>Model outputs</h2><span>Raw and rounded predictions</span></div>', unsafe_allow_html=True)
         display_df = pred_df.copy()
         display_df["Predicted score"] = display_df["Predicted score"].map(lambda x: f"{x:g}")
         display_df["Raw score"] = display_df["Raw score"].map(lambda x: f"{x:.3f}")
         st.dataframe(display_df, hide_index=True, use_container_width=True)
-
-        chart_df = pred_df.set_index("Model")[["Predicted score"]]
-        st.bar_chart(chart_df, use_container_width=True)
-        st.info("Individual predictions are estimates. QWK, MAE and RMSE are evaluation metrics requiring reference scores and therefore apply to the test set, not a single essay.")
+        st.bar_chart(pred_df.set_index("Model")[["Predicted score"]], use_container_width=True)
+        st.info("Individual predictions are estimates. QWK, MAE and RMSE require reference scores and therefore apply to held-out evaluation data, not a single essay.")
     elif essay.strip():
         st.warning("Essay received, but one or more trained model artifacts could not be loaded.")
 
