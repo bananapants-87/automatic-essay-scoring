@@ -157,16 +157,21 @@ with tab_score:
         st.markdown('<div class="section-title">Essay diagnostics <span class="section-caption">Input-level statistics</span></div>', unsafe_allow_html=True)
         cols=st.columns(7)
         items=[
-            ("Word count", f"{int(stats['Words']):,}", "Total number of words in the essay."),
-            ("Character count", f"{int(stats['Characters']):,}", "Total characters, including spaces and punctuation."),
-            ("Sentence count", f"{int(stats['Sentences']):,}", "Number of detected sentences."),
-            ("Paragraph count", f"{int(stats['Paragraphs']):,}", "Number of paragraphs separated by blank lines."),
-            ("Avg. sentence length", f"{stats['Avg. words / sentence']:.1f}", "Average number of words per sentence."),
-            ("Avg. word length", f"{stats['Avg. word length']:.1f}", "Average number of characters per word."),
-            ("Lexical diversity", f"{stats['Unique-word ratio']:.2f}", "Unique words divided by total words; higher values indicate more varied vocabulary.")
+            ("Word count", f"{int(stats['Words']):,}", "Total words in the essay."),
+            ("Character count", f"{int(stats['Characters']):,}", "Letters, spaces and punctuation."),
+            ("Sentence count", f"{int(stats['Sentences']):,}", "Detected sentences."),
+            ("Paragraph count", f"{int(stats['Paragraphs']):,}", "Paragraphs separated by blank lines."),
+            ("Avg. sentence length", f"{stats['Avg. words / sentence']:.1f}", "Average words per sentence."),
+            ("Avg. word length", f"{stats['Avg. word length']:.1f}", "Average characters per word."),
+            ("Lexical diversity", f"{stats['Unique-word ratio']:.2f}", "Unique words ÷ total words.")
         ]
         for col,(label,value,help_text) in zip(cols,items):
-            col.metric(label, value, help=help_text)
+            col.markdown(
+                f'<div class="metric-card"><div class="metric-label">{label}</div>'
+                f'<div class="metric-value">{value}</div>'
+                f'<div class="metric-note">{help_text}</div></div>',
+                unsafe_allow_html=True,
+            )
 
         st.markdown('<div class="section-title">Model estimates <span class="section-caption">This essay</span></div>', unsafe_allow_html=True)
         display_df=pred_df.copy()
