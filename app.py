@@ -159,14 +159,46 @@ with tab_score:
         items=[("Words",f"{int(stats['Words']):,}"),("Characters",f"{int(stats['Characters']):,}"),("Sentences",f"{int(stats['Sentences']):,}"),("Paragraphs",f"{int(stats['Paragraphs']):,}"),("Words / sentence",f"{stats['Avg. words / sentence']:.1f}"),("Avg. word length",f"{stats['Avg. word length']:.1f}"),("Unique-word ratio",f"{stats['Unique-word ratio']:.2f}")]
         for col,(label,value) in zip(cols,items): col.metric(label,value)
 
-        st.markdown('<div class="section-title">Model predictions <span class="section-caption">Every trained regressor</span></div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">Model estimates <span class="section-caption">This essay</span></div>', unsafe_allow_html=True)
         display_df=pred_df.copy()
         display_df["Predicted score"]=display_df["Predicted score"].map(lambda x:f"{x:g}")
         display_df["Raw score"]=display_df["Raw score"].map(lambda x:f"{x:.3f}")
         st.dataframe(display_df,hide_index=True,use_container_width=True)
-        st.markdown('<div class="section-title">Prediction spread <span class="section-caption">Rounded model estimates</span></div>', unsafe_allow_html=True)
-        st.bar_chart(pred_df.set_index("Model")[["Predicted score"]],use_container_width=True)
-        st.caption("The primary estimate uses the model with the strongest stored QWK. QWK, MAE and RMSE are test-set metrics and do not measure a single essay directly.")
+
+        st.markdown('<div class="section-title">Model performance <span class="section-caption">Held-out test set</span></div>', unsafe_allow_html=True)
+        performance = comparison[["model","qwk","mae","rmse"]].copy()
+        performance["rank"] = performance["qwk"].rank(method="min", ascending=False).astype(int)
+        performance = performance.sort_values(["rank","model"])
+        performance = performance.rename(columns={"rank":"Rank","model":"Model","qwk":"QWK","mae":"MAE","rmse":"RMSE"})
+        st.dataframe(
+            performance[["Rank","Model","QWK","MAE","RMSE"]],
+            hide_index=True,
+            use_container_width=True,
+            column_config={
+                "Rank": st.column_config.NumberColumn("Rank", width="small", format="%d"),
+                "Model": st.column_config.TextColumn("Model", width="medium"),
+                "QWK": st.column_config.ProgressColumn(
+                    "QWK ↑",
+                    help="Quadratic weighted kappa. Higher is better; 1.0 indicates perfect agreement.",
+                    min_value=0.0,
+                    max_value=1.0,
+                    format="%.3f",
+                ),
+                "MAE": st.column_config.NumberColumn(
+                    "MAE ↓",
+                    help="Mean absolute error. Lower is better.",
+                    format="%.3f",
+                ),
+                "RMSE": st.column_config.NumberColumn(
+                    "RMSE ↓",
+                    help="Root mean squared error. Lower is better.",
+                    format="%.3f",
+                ),
+            },
+        )
+        qwk_chart = performance.set_index("Model")[["QWK"]]
+        st.bar_chart(qwk_chart, use_container_width=True)
+        st.caption("Performance is measured on held-out essays. Higher QWK and lower MAE/RMSE indicate stronger model performance; these metrics do not evaluate the single essay above.")
     else:
         st.info("The score workspace is ready. Predictions will appear here after you score an essay.")
 
